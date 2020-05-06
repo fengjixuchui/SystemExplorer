@@ -48,6 +48,8 @@ LRESULT CObjectManagerView::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	m_Tree.Create(m_Splitter, rcDefault, nullptr, WS_CHILD | WS_VISIBLE | 
 		WS_CLIPCHILDREN | WS_CLIPSIBLINGS | TVS_LINESATROOT | TVS_HASBUTTONS | TVS_HASLINES | TVS_SHOWSELALWAYS);
 	m_List.SetImageList(m_pFrame->GetImageList(), LVSIL_SMALL);
+	//SetWindowTheme(m_Tree, L"", L"");
+
 	CImageList images;
 	images.Create(16, 16, ILC_COLOR | ILC_COLOR32, 2, 0);
 	images.AddIcon(AtlLoadIcon(IDI_FOLDER));

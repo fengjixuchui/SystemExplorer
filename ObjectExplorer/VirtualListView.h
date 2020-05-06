@@ -143,12 +143,6 @@ protected:
 		return si ? si->SortAscending : false;
 	}
 
-	//SortInfo* GetSortInfo(UINT_PTR id = 0) {
-	//	if (id == 0 && m_Controls.empty())
-	//		return nullptr;
-	//	return id == 0 ? &m_Controls[0] : FindById(id);
-	//}
-
 	SortInfo* GetSortInfo(HWND h = nullptr) {
 		if (h == nullptr && m_Controls.empty())
 			return nullptr;

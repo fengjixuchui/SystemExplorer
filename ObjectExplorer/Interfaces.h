@@ -5,6 +5,8 @@
 const DWORD ListViewDefaultStyle = WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN |
 	LVS_REPORT | LVS_SHOWSELALWAYS | LVS_OWNERDATA | LVS_SINGLESEL | LVS_SHAREIMAGELISTS;
 
+class ThemeManager;
+
 struct IMainFrame {
 	virtual BOOL TrackPopupMenu(HMENU hMenu, HWND hWnd, POINT* pt = nullptr, UINT flags = 0) = 0;
 	virtual HIMAGELIST GetImageList() = 0;
@@ -12,4 +14,5 @@ struct IMainFrame {
 	virtual void ShowAllHandles(PCWSTR typename) = 0;
 	virtual void ShowAllObjects(PCWSTR typename) = 0;
 	virtual CUpdateUIBase* GetUpdateUI() = 0;
+	virtual ThemeManager* GetThemeManager() = 0;
 };

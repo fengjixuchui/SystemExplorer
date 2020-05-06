@@ -7,6 +7,7 @@
 #include "ObjectManager.h"
 #include "INterfaces.h"
 #include "ToolBarHelper.h"
+#include "ThemeManager.h"
 
 class CMainFrame : 
 	public CFrameWindowImpl<CMainFrame>, 
@@ -32,6 +33,7 @@ public:
 	void ShowAllHandles(PCWSTR type) override;
 	void ShowAllObjects(PCWSTR type) override;
 	CUpdateUIBase* GetUpdateUI() override;
+	ThemeManager* GetThemeManager() override;
 
 	BEGIN_MSG_MAP(CMainFrame)
 		MESSAGE_HANDLER(WM_TIMER, OnTimer)

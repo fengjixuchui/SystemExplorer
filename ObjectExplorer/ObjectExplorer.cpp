@@ -2,11 +2,10 @@
 //
 
 #include "stdafx.h"
-
 #include "resource.h"
-
 #include "MainFrm.h"
 #include "DriverHelper.h"
+#include "ThemeManager.h"
 
 CAppModule _Module;
 
@@ -63,6 +62,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lps
 
 	hRes = _Module.Init(nullptr, hInstance);
 	ATLASSERT(SUCCEEDED(hRes));
+
+	//ThemeManager::Get()->Init(&_AtlWinModule);
 
 	int nRet = Run(lpstrCmdLine, nCmdShow);
 

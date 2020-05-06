@@ -8,6 +8,7 @@
 #include "ClipboardHelper.h"
 #include "ObjectsSummaryView.h"
 #include "SortHelper.h"
+#include "ThemeManager.h"
 
 BOOL CObjectSummaryView::PreTranslateMessage(MSG* pMsg) {
 	return FALSE;
@@ -37,7 +38,7 @@ DWORD CObjectSummaryView::OnPrePaint(int, LPNMCUSTOMDRAW) {
 DWORD CObjectSummaryView::OnSubItemPrePaint(int, LPNMCUSTOMDRAW cd) {
 	auto lcd = (LPNMLVCUSTOMDRAW)cd;
 	auto sub = lcd->iSubItem;
-	lcd->clrTextBk = CLR_INVALID;
+	lcd->clrTextBk = GetTextBkColor();
 
 	if (sub == 0) {
 		return CDRF_DODEFAULT;
@@ -50,7 +51,7 @@ DWORD CObjectSummaryView::OnSubItemPrePaint(int, LPNMCUSTOMDRAW cd) {
 	auto index = (int)cd->dwItemSpec;
 	auto& item = GetItem(index);
 	auto& changes = m_ObjectManager.GetChanges();
-	lcd->clrText = RGB(0, 0, 0);
+	lcd->clrText = GetTextColor();
 
 	for (auto& change : changes) {
 		if (std::get<0>(change) == item && MapChangeToColumn(std::get<1>(change)) == sub) {
@@ -93,6 +94,9 @@ LRESULT CObjectSummaryView::OnCreate(UINT, WPARAM, LPARAM, BOOL &) {
 	InsertColumn(10, L"Generic Mapping", LVCFMT_LEFT, 450);
 
 	SetExtendedListViewStyle(LVS_EX_DOUBLEBUFFER | LVS_EX_FULLROWSELECT | LVS_EX_LABELTIP | LVS_EX_HEADERDRAGDROP, 0);
+
+	//SetWindowTheme(*this, L"EXPLORER", nullptr);
+	//SetWindowTheme(GetHeader(), L"EXPLORER", nullptr);
 
 	SetImageList(m_pFrame->GetImageList(), LVSIL_SMALL);
 

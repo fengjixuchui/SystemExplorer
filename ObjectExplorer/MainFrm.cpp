@@ -20,6 +20,7 @@
 #include "PipesMailslotsDlg.h"
 #include "DetachHostWindow.h"
 #include "MemoryMapView.h"
+#include <atltheme.h>
 
 const UINT WINDOW_MENU_POSITION = 9;
 
@@ -121,6 +122,8 @@ LRESULT CMainFrame::OnTabContextMenu(int, LPNMHDR hdr, BOOL&) {
 }
 
 LRESULT CMainFrame::OnCreate(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/) {
+	::SetThreadPriority(::GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+
 	HWND hWndCmdBar = m_CmdBar.Create(m_hWnd, rcDefault, nullptr, ATL_SIMPLE_CMDBAR_PANE_STYLE);
 	CMenuHandle hMenu = GetMenu();
 	if (SecurityHelper::IsRunningElevated()) {
@@ -156,7 +159,7 @@ LRESULT CMainFrame::OnCreate(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/
 	m_view.m_bDestroyImageList = false;
 	m_hWndClient = m_view.Create(m_hWnd, rcDefault, nullptr,
 		WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN, WS_EX_CLIENTEDGE);
-
+	
 	UIAddToolBar(hWndToolBar);
 	UIAddStatusBar(m_hWndStatusBar, _countof(parts));
 
@@ -690,5 +693,9 @@ void CMainFrame::ShowAllObjects(PCWSTR type) {
 
 CUpdateUIBase* CMainFrame::GetUpdateUI() {
 	return this;
+}
+
+ThemeManager* CMainFrame::GetThemeManager() {
+	return ThemeManager::Get();
 }
 

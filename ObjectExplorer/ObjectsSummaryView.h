@@ -9,7 +9,7 @@ class CObjectSummaryView :
 	public CVirtualListView<CObjectSummaryView>,
 	public CCustomDraw<CObjectSummaryView> {
 public:
-	DECLARE_WND_SUPERCLASS(nullptr, CListViewCtrl::GetWndClassName())
+	DECLARE_WND_SUPERCLASS(L"Themed_" WC_LISTVIEW, CListViewCtrl::GetWndClassName())
 
 	CObjectSummaryView(IMainFrame* pFrame, CUpdateUIBase& updateUI) : m_pFrame(pFrame), m_UIUpdate(updateUI) {}
 

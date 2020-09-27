@@ -11,6 +11,7 @@
 #include "ObjectsSummaryView.h"
 #include "DriverHelper.h"
 #include "HandlesView.h"
+#include "ProcessHelper.h"
 #include "ProcessSelectDlg.h"
 #include "ObjectManagerView.h"
 #include "SecurityHelper.h"
@@ -53,6 +54,25 @@ BOOL CMainFrame::OnIdle() {
 
 void CMainFrame::OnFinalMessage(HWND) {
 	delete this;
+}
+
+void CMainFrame::SaveSettings(PCWSTR filename) {
+	CString path;
+	if (filename == nullptr) {
+		path = GetDefaultSettingsFile();
+		filename = path;
+	}
+	m_Settings.AlwaysOnTop = (GetExStyle() & WS_EX_TOPMOST) > 0;
+	m_Settings.Save(filename);
+}
+
+void CMainFrame::LoadSettings(PCWSTR filename) {
+	CString path;
+	if (filename == nullptr) {
+		path = GetDefaultSettingsFile();
+		filename = path;
+	}
+	m_Settings.Load(filename);
 }
 
 LRESULT CMainFrame::OnProcessMemoryMap(WORD, WORD, HWND, BOOL&) {
@@ -181,6 +201,16 @@ LRESULT CMainFrame::OnTabContextMenu(int, LPNMHDR hdr, BOOL&) {
 }
 
 LRESULT CMainFrame::OnCreate(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/) {
+	if (s_FrameCount == 1) {
+		LoadSettings();
+		if (m_Settings.SingleInstanceOnly && ProcessHelper::IsInstanceRunning()) {
+			WCHAR className[64]{};
+			::GetClassName(m_hWnd, className, _countof(className));
+			if(ProcessHelper::SetExistingInstanceFocus(className))
+				return -1;
+		}
+	}
+
 	HWND hWndCmdBar = m_CmdBar.Create(m_hWnd, rcDefault, nullptr, ATL_SIMPLE_CMDBAR_PANE_STYLE);
 	CMenuHandle hMenu = GetMenu();
 	if (SecurityHelper::IsRunningElevated()) {
@@ -230,6 +260,7 @@ LRESULT CMainFrame::OnCreate(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/
 	UIEnable(ID_HANDLES_CLOSEHANDLE, FALSE);
 	UIEnable(ID_EDIT_FIND, FALSE);
 	UIEnable(ID_EDIT_FIND_NEXT, FALSE);
+	UISetCheck(ID_OPTIONS_REPLACETASKMANAGER, ProcessHelper::IsReplacingTaskManager());
 
 	// register object for message filtering and idle updates
 	auto pLoop = _Module.GetMessageLoop();
@@ -239,6 +270,11 @@ LRESULT CMainFrame::OnCreate(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/
 	CMenuHandle menuMain = m_CmdBar.GetMenu();
 	m_view.SetWindowMenu(menuMain.GetSubMenu(WINDOW_MENU_POSITION));
 	m_view.SetTitleBarWindow(m_hWnd);
+
+	if (m_Settings.AlwaysOnTop)
+		ToggleAlwaysOnTop(ID_OPTIONS_ALWAYSONTOP);
+	if (m_Settings.SingleInstanceOnly)
+		UISetCheck(ID_OPTIONS_SINGLEINSTANCEONLY, TRUE);
 
 	// icons
 	struct {
@@ -382,6 +418,10 @@ LRESULT CMainFrame::OnDestroy(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*
 
 	bHandled = --s_FrameCount > 0;
 	s_Frames.erase(this);
+
+	if (s_FrameCount == 0) {
+		SaveSettings();
+	}
 
 	return 1;
 }
@@ -555,10 +595,7 @@ LRESULT CMainFrame::OnForward(WORD, WORD, HWND, BOOL& bHandled) {
 }
 
 LRESULT CMainFrame::OnAlwaysOnTop(WORD, WORD id, HWND, BOOL&) {
-	bool onTop = GetExStyle() & WS_EX_TOPMOST;
-	SetWindowPos(onTop ? HWND_NOTOPMOST : HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-	UISetCheck(id, !onTop);
-
+	ToggleAlwaysOnTop(id);
 	return 0;
 }
 
@@ -689,6 +726,37 @@ LRESULT CMainFrame::OnSystemSearch(WORD, WORD, HWND, BOOL&) {
 	m_view.AddPage(pView->m_hWnd, L"Search", m_Icons[(int)IconType::Search], pView);
 
 	return 0;
+}
+
+LRESULT CMainFrame::OnReplaceTaskManager(WORD, WORD, HWND, BOOL&) {
+	bool replacing = ProcessHelper::IsReplacingTaskManager();
+	if (!ProcessHelper::ReplaceTaskManager(replacing)) {
+		AtlMessageBox(*this, L"Failed to replace Task Manager", IDS_TITLE, MB_ICONWARNING);
+	}
+	else {
+		UISetCheck(ID_OPTIONS_REPLACETASKMANAGER, !replacing);
+	}
+	return 0;
+}
+
+LRESULT CMainFrame::OnSingleInstance(WORD, WORD, HWND, BOOL&) {
+	m_Settings.SingleInstanceOnly = !m_Settings.SingleInstanceOnly;
+	UISetCheck(ID_OPTIONS_SINGLEINSTANCEONLY, m_Settings.SingleInstanceOnly);
+
+	return 0;
+}
+
+CString CMainFrame::GetDefaultSettingsFile() {
+	WCHAR path[MAX_PATH];
+	::SHGetFolderPath(nullptr, CSIDL_LOCAL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, path);
+	::StringCchCat(path, _countof(path), L"\\SystemExplorer.ini");
+	return path;
+}
+
+void CMainFrame::ToggleAlwaysOnTop(UINT id) {
+	bool onTop = GetExStyle() & WS_EX_TOPMOST;
+	SetWindowPos(onTop ? HWND_NOTOPMOST : HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+	UISetCheck(id, !onTop);
 }
 
 void CMainFrame::CloseAllBut(int tab) {

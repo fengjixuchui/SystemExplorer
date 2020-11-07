@@ -11,4 +11,7 @@ struct FormatHelper {
 	static CString SidAttributesToString(WinSys::SidGroupAttributes attributes);
 	static PCWSTR PriorityClassToString(WinSys::ProcessPriorityClass pc);
 	static CString JobCpuRateControlFlagsToString(DWORD flags);
+	static PCWSTR IoPriorityToString(WinSys::IoPriority io);
+	static CString ComFlagsToString(WinSys::ComFlags flags);
+	static PCWSTR ComApartmentToString(WinSys::ComFlags flags);
 };

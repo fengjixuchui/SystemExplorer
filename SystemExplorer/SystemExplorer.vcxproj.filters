@@ -237,6 +237,12 @@
     <ClCompile Include="SysInfoView.cpp">
       <Filter>Views</Filter>
     </ClCompile>
+    <ClCompile Include="ThreadInfoEx.cpp">
+      <Filter>Models</Filter>
+    </ClCompile>
+    <ClCompile Include="DeviceObjectType.cpp">
+      <Filter>ObjectTypes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainFrm.h">
@@ -454,6 +460,12 @@
     </ClInclude>
     <ClInclude Include="SysInfoView.h">
       <Filter>Views</Filter>
+    </ClInclude>
+    <ClInclude Include="ThreadInfoEx.h">
+      <Filter>Models</Filter>
+    </ClInclude>
+    <ClInclude Include="DeviceObjectType.h">
+      <Filter>ObjectTypes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -9,9 +9,8 @@ CThreadsView::CThreadsView(IMainFrame* frame, DWORD pid) : CViewBase(frame), m_P
 }
 
 CString CThreadsView::GetColumnText(HWND, int row, int col) {
-	CString text;
-	auto& t = m_Threads[row];
-	auto& tx = GetThreadInfoEx(t.get());
+	const auto& t = m_Threads[row];
+	const auto& tx = GetThreadInfoEx(t.get());
 	if (tx.IsTerminated) {
 		m_ThreadsEx.erase(t.get());
 		m_Threads.erase(m_Threads.begin() + row);
@@ -19,6 +18,8 @@ CString CThreadsView::GetColumnText(HWND, int row, int col) {
 		m_List.RedrawItems(row, row);
 		return L"";
 	}
+
+	CString text;
 
 	switch (static_cast<ThreadColumn>(col)) {
 		case ThreadColumn::State: return ThreadStateToString(t->ThreadState);
@@ -40,17 +41,17 @@ CString CThreadsView::GetColumnText(HWND, int row, int col) {
 		case ThreadColumn::Priority: text.Format(L"%d ", t->Priority); break;
 		case ThreadColumn::BasePriority: text.Format(L"%d ", t->BasePriority); break;
 		case ThreadColumn::ContextSwitches: return FormatHelper::FormatWithCommas(t->ContextSwitches);
-		case ThreadColumn::Teb: 
-			if(t->TebBase != nullptr)
-				text.Format(L"0x%p", t->TebBase); 
+		case ThreadColumn::Teb:
+			if (t->TebBase != nullptr)
+				text.Format(L"0x%p", t->TebBase);
 			break;
-		case ThreadColumn::StartAddress: 
-			if(t->StartAddress)
-				text.Format(L"0x%p", t->StartAddress); 
+		case ThreadColumn::StartAddress:
+			if (t->StartAddress)
+				text.Format(L"0x%p", t->StartAddress);
 			break;
-		case ThreadColumn::Win32StartAddress: 
-			if(t->Win32StartAddress != t->StartAddress)
-				text.Format(L"0x%p", t->TebBase); 
+		case ThreadColumn::Win32StartAddress:
+			if (t->Win32StartAddress != t->StartAddress)
+				text.Format(L"0x%p", t->TebBase);
 			break;
 		case ThreadColumn::StackBase: text.Format(L"0x%p", t->StackBase); break;
 		case ThreadColumn::StackLimit: text.Format(L"0x%p", t->StackLimit); break;
@@ -58,6 +59,21 @@ CString CThreadsView::GetColumnText(HWND, int row, int col) {
 		case ThreadColumn::KernelTime: return FormatHelper::TimeSpanToString(t->KernelTime);
 		case ThreadColumn::UserTime: return FormatHelper::TimeSpanToString(t->UserTime);
 		case ThreadColumn::WaitTime: text.Format(L"%u.%03d", t->WaitTime / 1000, t->WaitTime % 1000); break;
+		case ThreadColumn::ComApartment: return FormatHelper::ComApartmentToString(tx.GetComFlags());
+		case ThreadColumn::ComFlags:
+		{
+			auto flags = tx.GetComFlags();
+			if (flags != WinSys::ComFlags::Error && flags != WinSys::ComFlags::None)
+				text.Format(L"0x%08X (%s)", flags, FormatHelper::ComFlagsToString(flags));
+			break;
+		}
+		case ThreadColumn::MemoryPriority:
+		{
+			auto mp = tx.GetMemoryPriority();
+			if (mp >= 0)
+				text.Format(L"%d", mp);
+			break;
+		}
 	}
 	return text;
 }
@@ -74,7 +90,7 @@ void CThreadsView::DoSort(const SortInfo* si) {
 	auto col = si->SortColumn;
 	auto asc = si->SortAscending;
 
-	std::sort(m_Threads.begin(), m_Threads.end(), [=](const auto& t1, const auto& t2) {
+	std::sort(m_Threads.begin(), m_Threads.end(), [&](const auto& t1, const auto& t2) {
 		switch (static_cast<ThreadColumn>(col)) {
 			case ThreadColumn::State: return SortHelper::SortNumbers(t1->ThreadState, t2->ThreadState, asc);
 			case ThreadColumn::Id: return SortHelper::SortNumbers(t1->Id, t2->Id, asc);
@@ -95,6 +111,12 @@ void CThreadsView::DoSort(const SortInfo* si) {
 			case ThreadColumn::StackLimit: return SortHelper::SortNumbers(t1->StackLimit, t2->StackLimit, asc);
 			case ThreadColumn::ContextSwitches: return SortHelper::SortNumbers(t1->ContextSwitches, t2->ContextSwitches, asc);
 			case ThreadColumn::WaitTime: return SortHelper::SortNumbers(t1->WaitTime, t2->WaitTime, asc);
+			case ThreadColumn::MemoryPriority: return SortHelper::SortNumbers(GetThreadInfoEx(t1.get()).GetMemoryPriority(), GetThreadInfoEx(t2.get()).GetMemoryPriority(), asc);
+			case ThreadColumn::IoPriority: return SortHelper::SortNumbers(GetThreadInfoEx(t1.get()).GetIoPriority(), GetThreadInfoEx(t2.get()).GetIoPriority(), asc);
+			case ThreadColumn::ComFlags: return SortHelper::SortNumbers(GetThreadInfoEx(t1.get()).GetComFlags(), GetThreadInfoEx(t2.get()).GetComFlags(), asc);
+			case ThreadColumn::ComApartment: return SortHelper::SortStrings(
+				FormatHelper::ComApartmentToString(GetThreadInfoEx(t1.get()).GetComFlags()), 
+				FormatHelper::ComApartmentToString(GetThreadInfoEx(t2.get()).GetComFlags()), asc);
 		}
 		return false;
 		});
@@ -211,6 +233,8 @@ void CThreadsView::Refresh() {
 }
 
 void CThreadsView::UpdateUI() {
+	auto ui = GetFrame()->GetUpdateUI();
+	ui->UISetCheck(ID_VIEW_PAUSE, m_UpdateInterval == 0);
 }
 
 LRESULT CThreadsView::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
@@ -244,7 +268,7 @@ LRESULT CThreadsView::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	cm->AddColumn(L"Priority", LVCFMT_RIGHT, 60, ColumnFlags::Visible | ColumnFlags::Numeric);
 	cm->AddColumn(L"Base Priority", LVCFMT_RIGHT, 70, ColumnFlags::Visible | ColumnFlags::Numeric);
 	cm->AddColumn(L"TEB", LVCFMT_RIGHT, 140, ColumnFlags::Numeric);
-	cm->AddColumn(L"Wait Reason", LVCFMT_LEFT, 90, ColumnFlags::None);
+	cm->AddColumn(L"Wait Reason", LVCFMT_LEFT, 100, ColumnFlags::Visible);
 	cm->AddColumn(L"Start Address", LVCFMT_RIGHT, 140, ColumnFlags::Numeric);
 	cm->AddColumn(L"Win32 Start Address", LVCFMT_RIGHT, 140, ColumnFlags::Numeric);
 	cm->AddColumn(L"Stack Base", LVCFMT_RIGHT, 140, ColumnFlags::Numeric);
@@ -252,6 +276,10 @@ LRESULT CThreadsView::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	cm->AddColumn(L"Performance\\Context Switches", LVCFMT_RIGHT, 100, ColumnFlags::Numeric);
 	cm->AddColumn(L"Performance\\Kernel Time", LVCFMT_RIGHT, 130, ColumnFlags::Numeric);
 	cm->AddColumn(L"Performance\\User Time", LVCFMT_RIGHT, 130, ColumnFlags::Numeric);
+	cm->AddColumn(L"Performance\\I/O Priority", LVCFMT_LEFT, 80, ColumnFlags::None);
+	cm->AddColumn(L"Performance\\Memory Priority", LVCFMT_RIGHT, 80, ColumnFlags::Numeric);
+	cm->AddColumn(L"COM Flags", LVCFMT_LEFT, 150, ColumnFlags::None);
+	cm->AddColumn(L"COM APT", LVCFMT_LEFT, 60, ColumnFlags::None);
 
 	Refresh();
 	SetTimer(1, m_UpdateInterval, nullptr);
@@ -267,9 +295,6 @@ LRESULT CThreadsView::OnTimer(UINT, WPARAM id, LPARAM, BOOL&) {
 }
 
 LRESULT CThreadsView::OnActivate(UINT, WPARAM activate, LPARAM, BOOL&) {
-	if (m_UpdateInterval == 0)
-		return 0;
-
 	if (activate) {
 		if (m_UpdateInterval)
 			SetTimer(1, m_UpdateInterval, nullptr);
@@ -277,6 +302,7 @@ LRESULT CThreadsView::OnActivate(UINT, WPARAM activate, LPARAM, BOOL&) {
 	else {
 		KillTimer(1);
 	}
+	UpdateUI();
 	return 0;
 }
 
@@ -362,7 +388,7 @@ LRESULT CThreadsView::OnPause(WORD, WORD, HWND, BOOL&) {
 		SetTimer(1, m_UpdateInterval, nullptr);
 	}
 
-	GetFrame()->GetUpdateUI()->UISetCheck(ID_VIEW_PAUSE, m_UpdateInterval == 0);
+	UpdateUI();
 	return 0;
 }
 
@@ -384,12 +410,12 @@ PCWSTR CThreadsView::ThreadStateToString(WinSys::ThreadState state) {
 	return states[(int)state];
 }
 
-CThreadsView::ThreadInfoEx& CThreadsView::GetThreadInfoEx(WinSys::ThreadInfo* ti) const {
+ThreadInfoEx& CThreadsView::GetThreadInfoEx(WinSys::ThreadInfo* ti) const {
 	auto it = m_ThreadsEx.find(ti);
 	if (it != m_ThreadsEx.end())
 		return it->second;
 
-	ThreadInfoEx tx;
+	ThreadInfoEx tx(ti);
 	auto pair = m_ThreadsEx.insert({ ti, std::move(tx) });
 	return pair.first->second;
 }
@@ -439,3 +465,4 @@ PCWSTR CThreadsView::WaitReasonToString(WinSys::WaitReason reason) {
 
 	return reasons[(int)reason];
 }
+
